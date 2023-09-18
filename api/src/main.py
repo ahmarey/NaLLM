@@ -17,7 +17,7 @@ from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fewshot_examples import get_fewshot_examples
-from llm.openai import OpenAIChat
+from llm.llama import LlamaChat
 from pydantic import BaseModel
 
 
@@ -70,18 +70,16 @@ app.add_middleware(
 
 @app.post("/questionProposalsForCurrentDb")
 async def questionProposalsForCurrentDb(payload: questionProposalPayload):
-    if not openai_api_key and not payload.api_key:
-        raise HTTPException(
-            status_code=422,
-            detail="Please set OPENAI_API_KEY environment variable or send it as api_key in the request body",
-        )
-    api_key = openai_api_key if openai_api_key else payload.api_key
+    print('questionProposalsForCurrentDb')
+    # if not openai_api_key and not payload.api_key:
+    #     raise HTTPException(
+    #         status_code=422,
+    #         detail="Please set OPENAI_API_KEY environment variable or send it as api_key in the request body",
+    #     )
 
     questionProposalGenerator = QuestionProposalGenerator(
         database=neo4j_connection,
-        llm=OpenAIChat(
-            openai_api_key=api_key,
-            model_name="gpt-3.5-turbo-0613",
+        llm=LlamaChat(
             max_tokens=512,
             temperature=0.8,
         ),
@@ -92,11 +90,13 @@ async def questionProposalsForCurrentDb(payload: questionProposalPayload):
 
 @app.get("/hasapikey")
 async def hasApiKey():
+    print('hasapikey')
     return JSONResponse(content={"output": openai_api_key is not None})
 
 
 @app.websocket("/text2text")
 async def websocket_endpoint(websocket: WebSocket):
+    print('text2text')
     async def sendDebugMessage(message):
         await websocket.send_json({"type": "debug", "detail": message})
 
@@ -121,21 +121,16 @@ async def websocket_endpoint(websocket: WebSocket):
     try:
         while True:
             data = await websocket.receive_json()
-            if not openai_api_key and not data.get("api_key"):
-                raise HTTPException(
-                    status_code=422,
-                    detail="Please set OPENAI_API_KEY environment variable or send it as api_key in the request body",
-                )
-            api_key = openai_api_key if openai_api_key else data.get("api_key")
+            # if not openai_api_key and not data.get("api_key"):
+            #     raise HTTPException(
+            #         status_code=422,
+            #         detail="Please set OPENAI_API_KEY environment variable or send it as api_key in the request body",
+            #     )
+            # api_key = openai_api_key if openai_api_key else data.get("api_key")
 
-            default_llm = OpenAIChat(
-                openai_api_key=api_key,
-                model_name=data.get("model_name", "gpt-3.5-turbo-0613"),
-            )
+            default_llm = LlamaChat()
             summarize_results = SummarizeCypherResult(
-                llm=OpenAIChat(
-                    openai_api_key=api_key,
-                    model_name="gpt-3.5-turbo-0613",
+                llm=LlamaChat(
                     max_tokens=128,
                 )
             )
@@ -143,7 +138,7 @@ async def websocket_endpoint(websocket: WebSocket):
             text2cypher = Text2Cypher(
                 database=neo4j_connection,
                 llm=default_llm,
-                cypher_examples=get_fewshot_examples(api_key),
+                cypher_examples=get_fewshot_examples(),
             )
 
             if "type" not in data:
@@ -153,7 +148,7 @@ async def websocket_endpoint(websocket: WebSocket):
                 try:
                     question = data["question"]
                     chatHistory.append({"role": "user", "content": question})
-                    await sendDebugMessage("received question: " + question)
+                    await sendDebugMessage(f"received question: {question}")
                     results = None
                     try:
                         results = text2cypher.run(question, chatHistory)
@@ -161,7 +156,7 @@ async def websocket_endpoint(websocket: WebSocket):
                     except Exception as e:
                         await sendErrorMessage(str(e))
                         continue
-                    if results == None:
+                    if results is None:
                         await sendErrorMessage("Could not generate Cypher statement")
                         continue
 
@@ -192,22 +187,20 @@ async def websocket_endpoint(websocket: WebSocket):
 
 @app.post("/data2cypher")
 async def root(payload: ImportPayload):
+    print('data2cypher')
     """
     Takes an input and created a Cypher query
     """
-    if not openai_api_key and not payload.api_key:
-        raise HTTPException(
-            status_code=422,
-            detail="Please set OPENAI_API_KEY environment variable or send it as api_key in the request body",
-        )
-    api_key = openai_api_key if openai_api_key else payload.api_key
+    # if not openai_api_key and not payload.api_key:
+    #     raise HTTPException(
+    #         status_code=422,
+    #         detail="Please set OPENAI_API_KEY environment variable or send it as api_key in the request body",
+    #     )
 
     try:
         result = ""
 
-        llm = OpenAIChat(
-            openai_api_key=api_key, model_name="gpt-3.5-turbo-16k", max_tokens=4000
-        )
+        llm = LlamaChat(max_tokens=4000)
 
         if not payload.neo4j_schema:
             extractor = DataExtractor(llm=llm)
@@ -216,12 +209,12 @@ async def root(payload: ImportPayload):
             extractor = DataExtractorWithSchema(llm=llm)
             result = extractor.run(schema=payload.neo4j_schema, data=payload.input)
 
-        print("Extracted result: " + str(result))
+        print(f"Extracted result: {str(result)}")
 
         disambiguation = DataDisambiguation(llm=llm)
         disambiguation_result = disambiguation.run(result)
 
-        print("Disambiguation result " + str(disambiguation_result))
+        print(f"Disambiguation result {str(disambiguation_result)}")
 
         return {"data": disambiguation_result}
 
@@ -238,42 +231,45 @@ class companyReportPayload(BaseModel):
 # This endpoint is database specific and only works with the Demo database.
 @app.post("/companyReport")
 async def companyInformation(payload: companyReportPayload):
-    api_key = openai_api_key if openai_api_key else payload.api_key
-    if not openai_api_key and not payload.api_key:
-        raise HTTPException(
-            status_code=422,
-            detail="Please set OPENAI_API_KEY environment variable or send it as api_key in the request body",
+    print('companyReport')
+    # if not openai_api_key and not payload.api_key:
+    #     raise HTTPException(
+    #         status_code=422,
+    #         detail="Please set OPENAI_API_KEY environment variable or send it as api_key in the request body",
+    #     )
+    try:
+        llm = LlamaChat(
+            max_tokens=512,
         )
-    api_key = openai_api_key if openai_api_key else payload.api_key
-
-    llm = OpenAIChat(
-        openai_api_key=api_key,
-        model_name="gpt-3.5-turbo-16k-0613",
-        max_tokens=512,
-    )
-    print("Running company report for " + payload.company)
+    except Exception as e:
+        return {"status": str(e)}
+    print(f"Running company report for {payload.company}")
     company_report = CompanyReport(neo4j_connection, payload.company, llm)
     result = company_report.run()
 
     return JSONResponse(content={"output": result})
-
+    # return {"status": "ok"}
 
 @app.post("/companyReport/list")
 async def companyReportList():
+    print('companyReportlist')
     company_data = neo4j_connection.query(
         "MATCH (n:Organization) WITH n WHERE rand() < 0.01 return n.name LIMIT 5",
     )
 
     return JSONResponse(content={"output": [x["n.name"] for x in company_data]})
+    # return {"status": "ok"}
 
 
 @app.get("/health")
 async def health():
+    print('health')
     return {"status": "ok"}
 
 
 @app.get("/ready")
 async def readiness_check():
+    print('ready')
     return {"status": "ok"}
 
 

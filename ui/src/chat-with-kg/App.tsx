@@ -60,7 +60,7 @@ function stripQuestionPrefix(question: string): string {
 
 function App() {
   const [serverAvailable, setServerAvailable] = useState(true);
-  const [needsApiKeyLoading, setNeedsApiKeyLoading] = useState(true);
+  const [needsApiKeyLoading, setNeedsApiKeyLoading] = useState(false);
   const [needsApiKey, setNeedsApiKey] = useState(true);
   const [chatMessages, setChatMessages] = useState(chatMessageObjects);
   const [conversationState, setConversationState] =

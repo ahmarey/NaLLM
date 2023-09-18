@@ -8,3 +8,5 @@ tiktoken==0.4.0
 python-dotenv==1.0.0
 websockets===11.0.3
 gunicorn===20.1.0
+transformers===4.33.2
+torch===2.0.1
