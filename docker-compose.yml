@@ -12,6 +12,9 @@ services:
       - .env
     volumes:
       - ./api:/api
+    runtime: nvidia  # Specify the NVIDIA runtime here
+    devices:
+      - /dev/nvidia0:/dev/nvidia0  # Adjust the GPU device as needed
   frontend:
     build:
       context: ./ui

@@ -70,7 +70,7 @@ app.add_middleware(
 
 @app.post("/questionProposalsForCurrentDb")
 async def questionProposalsForCurrentDb(payload: questionProposalPayload):
-    print('questionProposalsForCurrentDb')
+    print('questionProposalsForCurrentDb+++++++++++++++++++++++++++')
     # if not openai_api_key and not payload.api_key:
     #     raise HTTPException(
     #         status_code=422,
@@ -90,13 +90,13 @@ async def questionProposalsForCurrentDb(payload: questionProposalPayload):
 
 @app.get("/hasapikey")
 async def hasApiKey():
-    print('hasapikey')
+    print('hasapikey+++++++++++++++++++++++++++')
     return JSONResponse(content={"output": openai_api_key is not None})
 
 
 @app.websocket("/text2text")
 async def websocket_endpoint(websocket: WebSocket):
-    print('text2text')
+    print('text2text+++++++++++++++++++++++++++')
     async def sendDebugMessage(message):
         await websocket.send_json({"type": "debug", "detail": message})
 
@@ -104,6 +104,7 @@ async def websocket_endpoint(websocket: WebSocket):
         await websocket.send_json({"type": "error", "detail": message})
 
     async def onToken(token):
+        print('tokening!!', token)
         delta = token["choices"][0]["delta"]
         if "content" not in delta:
             return
@@ -150,6 +151,8 @@ async def websocket_endpoint(websocket: WebSocket):
                     chatHistory.append({"role": "user", "content": question})
                     await sendDebugMessage(f"received question: {question}")
                     results = None
+                    print(f"question!!!!: {question}")
+                    print(f"chatHistory!!!!: {chatHistory}")
                     try:
                         results = text2cypher.run(question, chatHistory)
                         print("results", results)
@@ -187,7 +190,7 @@ async def websocket_endpoint(websocket: WebSocket):
 
 @app.post("/data2cypher")
 async def root(payload: ImportPayload):
-    print('data2cypher')
+    print('data2cypher+++++++++++++++++++++++++++')
     """
     Takes an input and created a Cypher query
     """
