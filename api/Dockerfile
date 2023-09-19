@@ -17,7 +17,7 @@ RUN mkdir -p $FOLDER
 # Install packages
 COPY ./requirements.txt $FOLDER/requirements.txt
 RUN pip3 install -r $FOLDER/requirements.txt
-RUN pip3 install auto-gptq --extra-index-url https://huggingface.github.io/autogptq-index/whl/cu118/  # Use cu117 if on CUDA 11.7
+RUN pip install auto-gptq --extra-index-url https://huggingface.github.io/autogptq-index/whl/cu118/  # Use cu117 if on CUDA 11.7
 # Copy the project files into the container
 COPY ./src $FOLDER/src
 

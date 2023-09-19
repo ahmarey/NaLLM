@@ -70,12 +70,6 @@ app.add_middleware(
 
 @app.post("/questionProposalsForCurrentDb")
 async def questionProposalsForCurrentDb(payload: questionProposalPayload):
-    print('questionProposalsForCurrentDb+++++++++++++++++++++++++++')
-    # if not openai_api_key and not payload.api_key:
-    #     raise HTTPException(
-    #         status_code=422,
-    #         detail="Please set OPENAI_API_KEY environment variable or send it as api_key in the request body",
-    #     )
 
     questionProposalGenerator = QuestionProposalGenerator(
         database=neo4j_connection,
@@ -90,13 +84,11 @@ async def questionProposalsForCurrentDb(payload: questionProposalPayload):
 
 @app.get("/hasapikey")
 async def hasApiKey():
-    print('hasapikey+++++++++++++++++++++++++++')
     return JSONResponse(content={"output": openai_api_key is not None})
 
 
 @app.websocket("/text2text")
 async def websocket_endpoint(websocket: WebSocket):
-    print('text2text+++++++++++++++++++++++++++')
     async def sendDebugMessage(message):
         await websocket.send_json({"type": "debug", "detail": message})
 
@@ -104,7 +96,6 @@ async def websocket_endpoint(websocket: WebSocket):
         await websocket.send_json({"type": "error", "detail": message})
 
     async def onToken(token):
-        print('tokening!!', token)
         delta = token["choices"][0]["delta"]
         if "content" not in delta:
             return
@@ -190,15 +181,9 @@ async def websocket_endpoint(websocket: WebSocket):
 
 @app.post("/data2cypher")
 async def root(payload: ImportPayload):
-    print('data2cypher+++++++++++++++++++++++++++')
     """
     Takes an input and created a Cypher query
     """
-    # if not openai_api_key and not payload.api_key:
-    #     raise HTTPException(
-    #         status_code=422,
-    #         detail="Please set OPENAI_API_KEY environment variable or send it as api_key in the request body",
-    #     )
 
     try:
         result = ""
@@ -234,19 +219,12 @@ class companyReportPayload(BaseModel):
 # This endpoint is database specific and only works with the Demo database.
 @app.post("/companyReport")
 async def companyInformation(payload: companyReportPayload):
-    print('companyReport')
-    # if not openai_api_key and not payload.api_key:
-    #     raise HTTPException(
-    #         status_code=422,
-    #         detail="Please set OPENAI_API_KEY environment variable or send it as api_key in the request body",
-    #     )
     try:
         llm = LlamaChat(
             max_tokens=512,
         )
     except Exception as e:
         return {"status": str(e)}
-    print(f"Running company report for {payload.company}")
     company_report = CompanyReport(neo4j_connection, payload.company, llm)
     result = company_report.run()
 
@@ -255,7 +233,6 @@ async def companyInformation(payload: companyReportPayload):
 
 @app.post("/companyReport/list")
 async def companyReportList():
-    print('companyReportlist')
     company_data = neo4j_connection.query(
         "MATCH (n:Organization) WITH n WHERE rand() < 0.01 return n.name LIMIT 5",
     )

@@ -3,7 +3,35 @@ from transformers import AutoTokenizer, AutoModelForCausalLM
 import torch
 from llm.basellm import BaseLLM
 # from ctransformers import AutoModelForCausalLM
+def convert_stream_to_token(data):
+    # Initialize variables to store the result
+    result = []
+    
+    # Initialize variables to keep track of the current role and content
+    current_role = None
+    current_content = []
 
+    # Iterate through the list
+    for item in data:
+        # print(item)
+        # Check if the item ends with a colon, indicating a role
+        if item.endswith(":"):
+            # If there's a current role, create a dictionary for it
+            if current_role:
+                result.append({"role": current_role, "content": " ".join(current_content)})
+            
+            # Update the current role and reset the content list
+            current_role = item.rstrip(":")
+            current_content = []
+        else:
+            # Append the content to the current content list
+            current_content.append(item)
+
+    # Add the last role and content pair
+    if current_role:
+        result.append({"role": current_role, "content": " ".join(current_content)})
+
+    return result
 
 
 
@@ -12,7 +40,7 @@ class LlamaChat(BaseLLM):
 
     def __init__(
         self,
-        model_name_or_path: str = "TheBloke/Llama-2-7B-32K-Instruct-GPTQ",
+        model_name_or_path: str = "TheBloke/Llama-2-7B-GPTQ",
         max_tokens: int = 1000,
         temperature: float = 0.0,
     ) -> None:
@@ -30,19 +58,13 @@ class LlamaChat(BaseLLM):
         # self.model.to(self.device)
     def generate(self, messages: List[str]) -> str:
         try:
-            result_string = ""
-            for item in messages:
-                result_string += f"{item['role']}: {item['content']}\n"
+            result_string = str(messages)
             print('before tokenizer ',messages)
             input_ids = self.tokenizer(result_string, return_tensors="pt").input_ids.to(self.model.device)
             print('before generating ')
             output = self.model.generate(
                 input_ids,
-                max_length=1000,  # Adjust max length as needed
-                temperature=self.temperature,  # Use the temperature you desire
-                num_return_sequences=1,
-                pad_token_id=self.tokenizer.eos_token_id
-            )
+                temperature=0.7, do_sample=True, top_p=0.95, top_k=40, max_new_tokens=512)
             print('finished generate')
             generated_text = self.tokenizer.decode(output[0], skip_special_tokens=True)
             print('finished generate!!!!',generated_text)
@@ -61,11 +83,12 @@ class LlamaChat(BaseLLM):
             input_ids = self.tokenizer(result_string, return_tensors="pt").input_ids.to(self.model.device)
             print('stream start!!!!!!!')
             with torch.no_grad():
-                output = self.model.generate(input_ids, temperature=self.temperature)
+                output = self.model.generate(input_ids, temperature=0.7, do_sample=True, top_p=0.95, top_k=40, max_new_tokens=512)
             generated_text = self.tokenizer.decode(output[0], skip_special_tokens=True)
             print('stream end!!!!!!!',generated_text)
             tokens = generated_text.split()
-            print('stream end2!!!!!!!',tokens)
+            # print('stream end2!!!!!!!',tokens)
+            tokens = convert_stream_to_token(tokens)
             for token in tokens:
                 await onTokenCallback(token)
             print('stream end3!!!!!!!',token)
